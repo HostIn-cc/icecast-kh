@@ -1638,7 +1638,7 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
         avl_node *param = avl_get_first(listener->parser->queryvars);
         while (param)
         {
-            httpp_var_t *var = (httpp_var_t *)param->key;
+            http_var_t *var = (http_var_t *)param->key;
             if (var && var->name && var->value)
             {
                 // Zorg dat het XML-veilig is
