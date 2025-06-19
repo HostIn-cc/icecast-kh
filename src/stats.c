@@ -405,18 +405,18 @@ static stats_node_t *_find_node(const avl_tree *stats_tree, const char *name)
 
     /* get the root node */
     node = stats_tree->root->right;
-    
+
     while (node) {
         stats = (stats_node_t *)node->key;
         cmp = strcmp(name, stats->name);
-        if (cmp < 0) 
+        if (cmp < 0)
             node = node->left;
         else if (cmp > 0)
             node = node->right;
         else
             return stats;
     }
-    
+
     /* didn't find it */
     return NULL;
 }
@@ -1632,6 +1632,14 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
         xmlFree (str);
     }
 
+    header = httpp_getvar (listener->parser, "cookie");
+    if (header && xmlCheckUTF8((unsigned char *)header))
+    {
+        xmlChar *str = xmlEncodeEntitiesReentrant (parent->doc, XMLSTR(header));
+        xmlNewChild (node, NULL, XMLSTR("Cookie"), str);
+        xmlFree (str);
+    }
+
     if ((listener->flags & (CLIENT_ACTIVE|CLIENT_IN_FSERVE)) == CLIENT_ACTIVE)
     {
         source_t *source = listener->shared_data;
@@ -1654,4 +1662,3 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
         xmlFree (str);
     }
 }
-
