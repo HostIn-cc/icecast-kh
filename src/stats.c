@@ -1616,7 +1616,7 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
 
     xmlNewChild (node, NULL, XMLSTR("IP"), XMLSTR(listener->connection.ip));
 
-    xmlNewChild (node, NULL, XMLSTR("Test-Rein"), XMLSTR("This is a Test Rein"))
+    xmlNewChild (node, NULL, XMLSTR("Test-Rein"), XMLSTR("This is a Test Rein"));
 
     header = httpp_getvar (listener->parser, "user-agent");
     if (header && xmlCheckUTF8((unsigned char *)header))
