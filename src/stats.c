@@ -1614,71 +1614,7 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
     xmlSetProp (node, XMLSTR("id"), XMLSTR(buf));
     xmlNewChild (node, NULL, XMLSTR("ID"), XMLSTR(buf));
 
-    if (listener->parser && listener->parser->vars)
-    {
-        htab_t *headers = listener->parser->vars;
-        htab_item_t *item;
-        int i;
-        size_t json_len = 1024;
-        char *json = calloc(json_len, 1);
-        if (!json) return;
-
-        strcat(json, "{");
-
-        for (i = 0; i < headers->size; i++)
-        {
-            item = headers->items[i];
-            while (item)
-            {
-                const char *key = item->key;
-                const char *val = item->value;
-
-                if (!key || !val)
-                {
-                    item = item->next;
-                    continue;
-                }
-
-                // Escape quotes en controleer lengte
-                char key_escaped[256], val_escaped[1024];
-                snprintf(key_escaped, sizeof(key_escaped), "%s", key);
-                snprintf(val_escaped, sizeof(val_escaped), "%s", val);
-
-                // Zorg dat er genoeg ruimte is in de JSON buffer
-                size_t needed = strlen(json) + strlen(key_escaped) + strlen(val_escaped) + 16;
-                if (needed > json_len - 1)
-                {
-                    json_len *= 2;
-                    char *new_json = realloc(json, json_len);
-                    if (!new_json) { free(json); return; }
-                    json = new_json;
-                }
-
-                // Voeg toe aan JSON-string
-                strcat(json, "\"");
-                strcat(json, key_escaped);
-                strcat(json, "\":\"");
-                strcat(json, val_escaped);
-                strcat(json, "\",");
-
-                item = item->next;
-            }
-        }
-
-        // Verwijder laatste komma en sluit JSON af
-        if (json[strlen(json) - 1] == ',')
-            json[strlen(json) - 1] = '\0';
-        strcat(json, "}");
-
-        if (xmlCheckUTF8((unsigned char *)json))
-        {
-            xmlChar *str = xmlEncodeEntitiesReentrant (parent->doc, XMLSTR(json));
-            xmlNewChild (node, NULL, XMLSTR("AllHeadersJSON"), str);
-            xmlFree (str);
-        }
-
-        free(json);
-    }
+    xmlNewChild (node, NULL, XMLSTR("IP"), XMLSTR(listener->connection.ip));
 
     header = httpp_getvar (listener->parser, "user-agent");
     if (header && xmlCheckUTF8((unsigned char *)header))
@@ -1696,12 +1632,25 @@ void stats_listener_to_xml (client_t *listener, xmlNodePtr parent)
         xmlFree (str);
     }
 
-    header = httpp_getvar (listener->parser, "cookie");
-    if (header && xmlCheckUTF8((unsigned char *)header))
+    xmlNodePtr queryNode = xmlNewChild(node, NULL, XMLSTR("QueryParameters"), NULL);
+    if (listener->parser && listener->parser->queryvars)
     {
-        xmlChar *str = xmlEncodeEntitiesReentrant (parent->doc, XMLSTR(header));
-        xmlNewChild (node, NULL, XMLSTR("Cookie"), str);
-        xmlFree (str);
+        avl_node *param = avl_get_first(listener->parser->queryvars);
+        while (param)
+        {
+            httpp_var_t *var = (httpp_var_t *)param->key;
+            if (var && var->name && var->value)
+            {
+                // Zorg dat het XML-veilig is
+                if (xmlCheckUTF8((const unsigned char *)var->value))
+                {
+                    xmlChar *val = xmlEncodeEntitiesReentrant(parent->doc, XMLSTR(var->value));
+                    xmlNewChild(queryNode, NULL, XMLSTR(var->name), val);
+                    xmlFree(val);
+                }
+            }
+            param = avl_get_next(param);
+        }
     }
 
     if ((listener->flags & (CLIENT_ACTIVE|CLIENT_IN_FSERVE)) == CLIENT_ACTIVE)
